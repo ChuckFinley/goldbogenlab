@@ -1,0 +1,13 @@
+Package: goldbogenlab
+Type: Package
+Title: Internal package for the Goldbogen Lab at Hopkins Marine Station
+Version: 0.1.0
+Authors@R: person("Max", "Czapanskiy", email = "maxczap@stanford.edu",
+                  role = c("aut", "cre"))
+Description: Data management, calibration, and processing functionality for
+    Goldbogen lab tags. 
+License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+Imports: tidyverse,
+    yaml
