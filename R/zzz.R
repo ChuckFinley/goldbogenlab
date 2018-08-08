@@ -11,19 +11,3 @@
     }
   }
 }
-
-set_cats_path <- function(cats_path) {
-  if (!file_test("-d", cats_path)) {
-    stop("cats_path must be a valid directory.")
-  }
-  config <- read_config()
-  config$cats_path <- cats_path
-  write_config(config)
-}
-
-config_path <- function() file.path(system.file(package = "goldbogenlab"),
-                                    "_config.yml")
-
-read_config <- function()  yaml::read_yaml(config_path())
-
-write_config <- function(config) yaml::write_yaml(config, config_path())
