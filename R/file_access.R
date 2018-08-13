@@ -61,7 +61,42 @@ list_raw_tags <- function() {
 #' @param tagid A string with the tagid (e.g. "mn180105-22a"). Make sure the raw
 #'   data for the tag is on your hard drive!
 #'
-#' @return A tibble with the raw data from the tag.
+#' @return A tibble of raw tag data with fields:
+#' \itemize{
+#'   \item dateUTC (character)
+#'   \item timeUTC (character)
+#'   \item datetimeUTC (POSIXct)
+#'   \item timeLocal (character)
+#'   \item accX (double)
+#'   \item accY (double)
+#'   \item accZ (double)
+#'   \item gyrX (double)
+#'   \item gyrY (double)
+#'   \item gyrZ (double)
+#'   \item magX (double)
+#'   \item magY (double)
+#'   \item magZ (double)
+#'   \item tempIMU (double)
+#'   \item gpsDate (character)
+#'   \item gpsTime (character)
+#'   \item gps3 (integer)
+#'   \item gpsSats (integer)
+#'   \item depthM (double)
+#'   \item depthDegC (double)
+#'   \item light1 (integer)
+#'   \item light2 (integer)
+#'   \item syerr (character)
+#'   \item battV (double)
+#'   \item battmA (double)
+#'   \item battmAh (double)
+#'   \item camera (integer)
+#'   \item flags (character)
+#'   \item led (integer)
+#'   \item camtime (integer)
+#'   \item gpsL (logical)
+#'   \item ccStatus (character)
+#'   \item ccVidSz (integer)
+#' }
 #'
 #' @seealso \code{\link{list_raw_tags}}
 import_cats <- function(tagid) {
@@ -106,16 +141,20 @@ import_cats <- function(tagid) {
       pattern = "csv$")
   # Set up a progress bar
   pb <- dplyr::progress_estimated(length(raw_csvs))
-  purrr::map(raw_csvs,
-             # Update progress bar and call read_csv
-             function(x, ...) {
-               pb$tick()$print()
-               readr::read_csv(x, ...)
-             },
-             locale = readr::locale(encoding = "latin1"),
-             skip = 1,
-             col_names = cats_names,
-             col_types = cats_types,
-             progress = FALSE) %>%
-    dplyr::bind_rows()
+  result <-purrr::map(raw_csvs,
+                      # Update progress bar and call read_csv
+                      function(x, ...) {
+                        pb$tick()$print()
+                        readr::read_csv(x, ...)
+                      },
+                      locale = readr::locale(encoding = "latin1"),
+                      skip = 1,
+                      col_names = cats_names,
+                      col_types = cats_types,
+                      progress = FALSE) %>%
+    dplyr::bind_rows() %>%
+    mutate(datetimeUTC = lubridate::dmy_hms(paste(dateUTC, timeUTC)))
+  if (is.unsorted(result$datetimeUTC))
+    warning("WARNING: timestamps out of order.")
+  result
 }
