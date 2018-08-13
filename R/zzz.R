@@ -12,3 +12,9 @@
     }
   }
 }
+
+num_to_POSIX <- function(num) {
+  as.POSIXct(num,
+             origin = as.POSIXct("1970-01-01", tz = "UTC"),
+             tz = "UTC")
+}
