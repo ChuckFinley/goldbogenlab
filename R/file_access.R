@@ -144,8 +144,8 @@ import_cats <- function(tagid) {
   result <-purrr::map(raw_csvs,
                       # Update progress bar and call read_csv
                       function(x, ...) {
-                        pb$tick()$print()
                         readr::read_csv(x, ...)
+                        pb$tick()$print()
                       },
                       locale = readr::locale(encoding = "latin1"),
                       skip = 1,
