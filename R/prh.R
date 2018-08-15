@@ -1,5 +1,6 @@
 #' S4 class definition for PRH
 #'
+#' @include zzz.R
 #' @slot tagid A string with the tag ID e.g. "mn180607-44".
 #' @slot tagnum A string with the tag number e.g. "44"
 #' @slot freq A double with the sampling frequency after decimation in Hz
