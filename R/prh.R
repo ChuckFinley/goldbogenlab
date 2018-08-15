@@ -7,17 +7,19 @@
 #'   (typically 10 Hz).
 #' @slot tagon,tagoff A POSIXct with the date and time of tag attach and detach
 #'   in local time.
-#' @slot t A POSIXct with the date and time of each record.
-#' @slot depth A numeric with the depth records.
-#' @slot rawA,rawM,rawG An nx3 numeric matrix with the raw accelerometer,
-#'   magnetometer, and gyroscope records in enineering units.
-#' @slot At,Mt,Gt As rawA, rawM, and rawG, but calibrated in units of g,
-#'   microteslas, and radians per second, respectively in the tag's frame.
-#' @slot Aw,Mw,Gw As At, Mt, and Gt, but rotated into the whale's frame.
-#' @slot W A 3x3 numeric matrix to rotate tag frame into whale frame.
-#' @slot pitch,roll,head Numeric vectors with the pitch, roll, and heading.
-#' @slot speedJJ,speedFN Numeric vectors with speed estimates derived from
-#'   jiggle and flow noise, respectively.
+#' @slot slips A POSIXct vector with the timestamps of each tag slip.
+#' @slot W A list of 3x3 numeric matrices to rotate tag frame into whale frame.
+#'   One matrix for each tag orientation (changes on slips).
+#' @slot data A tibble with the following columns: \itemize{ \item t A POSIXct
+#'   with the date and time of each record. \item p A numeric with the depth
+#'   records. \item rawA,rawM,rawG List columns with nx3 numeric matrices with
+#'   the raw accelerometer, magnetometer, and gyroscope records in engineering
+#'   units. \item At,Mt,Gt As rawA, rawM, and rawG, but calibrated in units of
+#'   g, microteslas, and radians per second, respectively in the tag's frame.
+#'   \item Aw,Mw,Gw As At, Mt, and Gt, but rotated into the whale's frame. \item
+#'   pitch,roll,head Numerics with the pitch, roll, and heading. \item
+#'   speedJJ,speedFN Numerics with speed estimates derived from jiggle and flow
+#'   noise, respectively.}
 #' @slot rawdata A tibble with the (decimated) raw data. Removed at the end of
 #'   the PRH creation process.
 .PRH <- setClass("PRH",
@@ -26,27 +28,13 @@
             freq = "numeric",
             tagon = "POSIXct",
             tagoff = "POSIXct",
-            t = "POSIXct",
-            depth = "numeric",
-            rawA = "matrix",
-            rawM = "matrix",
-            rawG = "matrix",
-            At = "matrix",
-            Mt = "matrix",
-            Gt = "matrix",
-            Aw = "matrix",
-            Mw = "matrix",
-            Gw = "matrix",
-            W = "matrix",
-            pitch = "numeric",
-            roll = "numeric",
-            head = "numeric",
-            speedJJ = "numeric",
-            speedFN = "numeric",
+            slips = "POSIXct",
+            W = "list",
+            data = "data.frame",
             rawdata = "data.frame"),
   prototype = list(tagon = num_to_POSIX(0),
                    tagoff = num_to_POSIX(0),
-                   t = num_to_POSIX(0))
+                   slips = num_to_POSIX(0))
 )
 
 #' Constructor for PRH class
@@ -71,29 +59,29 @@ PRH <- function(tagid, tagnum) {
        tagnum = tagnum)
 }
 
-#' Initiate a PRH \code{init_prh} tries to load raw tag data and decimate it (by
-#' default to 10 Hz).
+#' Initiate a PRH
 #'
-#' Initiating the PRH process requires importing the raw data and decimating it
-#' to a manageable frequency. The next step is trimming to the tag on/off times.
+#' \code{init_prh} tries to load raw tag data.
+#'
+#' Initiating the PRH process finds the raw data on the CATS drive, imports it,
+#' and tidies up the names. The next step is decimating the data to a manageable
+#' frequency.
 #'
 #' @param prh A PRH object.
-#' @param new_freq The decimated sample frequency in Hz (by default 10 Hz).
-#' @return A PRH object with the following additional slots filled:
-#' \itemize{
-#'   \item freq
-#'   \item rawdata
+#' @return A PRH object with the rawdata slot filled
+#' @examples
+#' \dontrun{
+#' prh0 <- PRH("mn180607-44", "44")
+#' prh_rawdata <- init_prh(prh0)
 #' }
-#' @seealso \link{\code{trim_data}}, \link{\code{import_cats}}, \link{\code{decimate}}
-init_prh <- function(prh, new_freq) {
+#' @seealso \link{\code{import_cats}}, \link{\code{decimate}}
+init_prh <- function(prh) {
   if (!("PRH" %in% class(prh)))
-    stop("prh must be an object of class PRH.")
+    stop("prh must be a PRH object.")
 
   tryCatch({
-    prh@freq <- new_freq
-    imported <- import_cats(prh@tagid)
-    decimated <- decimate(imported, new_freq)
-    prh@rawdata <- decimated
+    prh@rawdata <- import_cats(prh@tagid)
+    prh
   }, error = function(e) {
     stop(stringr::str_glue("Error initiating tagid {prh@tagid}:\n{e$call}\n{e$message}"))
   })
@@ -101,41 +89,48 @@ init_prh <- function(prh, new_freq) {
 
 #' Decimate raw data
 #'
-#' \code{decimate} returns a subset of the raw data at a lower sampling
+#' \code{decimate_prh} returns a subset of the raw data at a lower sampling
 #' frequency.
 #'
 #' Decimation chooses every nth record, so the new sampling frequency must be a
 #' factor of the original. E.g. 400 Hz can be decimated to 10 Hz but not to 12
 #' Hz.
 #'
-#' @param raw_data A tibble of the raw data (e.g. returned from
-#'   \code{import_cats})
+#' @param prh A PRH object.
 #' @param new_freq The new sampling frequency. Must be a factor of the old
 #'   sampling frequency.
-#' @return A tibble with the same fields as the input.
+#' @return A PRH with the freq slot filled and rawdata decimated to the new
+#'   frequency.
 #' @seealso \link{\code{import_cats}}
-decimate <- function(raw_data, new_freq) {
-  if (!("data.frame" %in% class(raw_data)))
-    stop("raw_data must be a tibble.")
-  if (nrow(raw_data) < 2)
-    stop("raw_data must have at least two rows.")
-  if (!all(c("dateUTC", "timeUTC") %in% colnames(raw_data)))
-    stop("Columns dateUTC, timeUTC not found in raw_data.")
+decimate_prh <- function(prh, new_freq) {
+  if (!("PRH" %in% class(prh)))
+    stop("prh must be a PRH object.")
+  if (nrow(prh@rawdata) < 2)
+    stop("PRH raw data must have at least two records.")
+  if (!("datetimeUTC" %in% colnames(prh@rawdata)))
+    stop("Column datetimeUTC not found in raw data.")
   if (class(new_freq) != "numeric" ||
       length(new_freq) != 1)
     stop("new_freq must be a length one numeric vector.")
 
-  two_times <- with(raw_data, lubridate::dmy_hms(paste(dateUTC[1:2],
-                                                       timeUTC[1:2])))
-  old_period <- raw_data$datetimeUTC[2] - raw_data$datetimeUTC[1]
-  old_freq <- (1 / as.numeric(old_period, units = "secs")) %>%
-    round
+  rawdata <- prh@rawdata
+
+  # Test for timestamp issues
+  if (is.unsorted(rawdata$datetimeUTC))
+    stop("Raw data timestamps out of order, fix before continuing.")
+  if (any(as.numeric(diff(rawdata$datetimeUTC)) > 120))
+    stop("Raw data has gap(s) greater than two minutes, fix before continuing.")
+
+  # Infer original sampling frequency over a small window
+  infer_period <- 1:min(nrow(rawdata), 100)
+  old_period <- median(diff(rawdata$datetimeUTC[infer_period]))
+  old_freq <- round(1 / as.numeric(old_period, units = "secs"))
   message(stringr::str_glue("Old frequency inferred to be {old_freq} Hz."))
 
   if (old_freq %% new_freq != 0)
     stop("New frequency is not a factor of old frequency.")
 
-  slice(raw_data, seq(1, nrow(raw_data), by = old_freq / new_freq))
+  dplyr::slice(rawdata, seq(1, nrow(rawdata), by = old_freq / new_freq))
 }
 
 #' Trim data to tag on period
@@ -169,12 +164,12 @@ trim_data <- function(rawdata, use_gui = TRUE, tagon = NA, tagoff = NA) {
     list(tagon = tagon,
          tagoff = tagoff,
          data = rawdata %>%
-           dplyr::filter(between(datetimeUTC, tagon, tagoff)))
+           dplyr::filter(dplyr::between(datetimeUTC, tagon, tagoff)))
   } else {
     result <- tagonoff(rawdata)
     list(tagon = result[1],
          tagoff = result[2],
          data = rawdata %>%
-           dplyr::filter(between(datetimeUTC, result[1], result[2])))
+           dplyr::filter(dplyr::between(datetimeUTC, result[1], result[2])))
   }
 }

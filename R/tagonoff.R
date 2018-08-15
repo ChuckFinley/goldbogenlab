@@ -11,9 +11,12 @@ tagonoff <- function(rawdata) {
   # https://gallery.shinyapps.io/105-plot-interaction-zoom/
   # https://github.com/daattali/advanced-shiny/blob/master/close-window/app.R
 
+  if(is.unsorted(rawdata$datetimeUTC))
+    stop("Out-of-order timestamps")
+
   # For performance, downsample to 2e3 points per plot
-  resolution <- 2e3
-  rawdata2 <- slice(rawdata, seq(1, nrow(rawdata), length.out = resolution))
+  res <- 2e3
+  rawdata2 <- dplyr::slice(rawdata, seq(1, nrow(rawdata), length.out = res))
 
   close_window <- "shinyjs.close_window = function() { window.close(); }"
 
@@ -150,7 +153,7 @@ tagonoff <- function(rawdata) {
         zoom_range$acc_y <- NULL
         zoom_i <- findInterval(zoom_range$x, rawdata$datetimeUTC)
         zoom_range$zoom_data <- rawdata %>%
-          slice(seq(zoom_i[1], zoom_i[2], length.out = resolution))
+          slice(seq(zoom_i[1], zoom_i[2], length.out = res))
       } else {
         zoom_range$x <- NULL
         zoom_range$depth_y <- NULL
@@ -166,7 +169,7 @@ tagonoff <- function(rawdata) {
         zoom_range$depth_y <- NULL
         zoom_i <- findInterval(zoom_range$x, rawdata$datetimeUTC)
         zoom_range$zoom_data <- rawdata %>%
-          slice(seq(zoom_i[1], zoom_i[2], length.out = resolution))
+          slice(seq(zoom_i[1], zoom_i[2], length.out = res))
       } else {
         zoom_range$x <- NULL
         zoom_range$depth_y <- NULL

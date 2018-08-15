@@ -141,20 +141,23 @@ import_cats <- function(tagid) {
       pattern = "csv$")
   # Set up a progress bar
   pb <- dplyr::progress_estimated(length(raw_csvs))
-  result <-purrr::map(raw_csvs,
-                      # Update progress bar and call read_csv
-                      function(x, ...) {
-                        readr::read_csv(x, ...)
-                        pb$tick()$print()
-                      },
-                      locale = readr::locale(encoding = "latin1"),
-                      skip = 1,
-                      col_names = cats_names,
-                      col_types = cats_types,
-                      progress = FALSE) %>%
+  result <- purrr::map(raw_csvs,
+                       # Update progress bar and call read_csv
+                       function(x, ...) {
+                         result <- readr::read_csv(x, ...)
+                         pb$tick()$print()
+                         result
+                       },
+                       locale = readr::locale(encoding = "latin1"),
+                       skip = 1,
+                       col_names = cats_names,
+                       col_types = cats_types,
+                       progress = FALSE) %>%
     dplyr::bind_rows() %>%
-    mutate(datetimeUTC = lubridate::dmy_hms(paste(dateUTC, timeUTC)))
+    dplyr::mutate(datetimeUTC = lubridate::dmy_hms(paste(dateUTC, timeUTC)))
   if (is.unsorted(result$datetimeUTC))
-    warning("WARNING: timestamps out of order.")
+    warning("Timestamps out of order.")
+  if (any(as.numeric(diff(result$datetimeUTC)) > 120))
+    warning("Gap(s) greater than two minutes.")
   result
 }
