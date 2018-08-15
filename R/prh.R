@@ -130,7 +130,8 @@ decimate_prh <- function(prh, new_freq) {
   if (old_freq %% new_freq != 0)
     stop("New frequency is not a factor of old frequency.")
 
-  dplyr::slice(rawdata, seq(1, nrow(rawdata), by = old_freq / new_freq))
+  prh@rawdata <- dplyr::slice(rawdata, seq(1, nrow(rawdata), by = old_freq / new_freq))
+  prh
 }
 
 #' Trim data to tag on period
