@@ -14,3 +14,10 @@ Imports: shiny,
   tidyverse,
   yaml
 RoxygenNote: 6.1.0
+Collate: 
+    'config.R'
+    'file_access.R'
+    'zzz.R'
+    'prh.R'
+    'tag_slip.R'
+    'tagonoff.R'
