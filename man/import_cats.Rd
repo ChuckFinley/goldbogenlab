@@ -15,6 +15,7 @@ A tibble of raw tag data with fields:
 \itemize{
   \item dateUTC (character)
   \item timeUTC (character)
+  \item datetimeUTC (POSIXct)
   \item timeLocal (character)
   \item accX (double)
   \item accY (double)

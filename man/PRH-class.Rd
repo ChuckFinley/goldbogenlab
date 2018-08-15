@@ -23,6 +23,8 @@ in local time.}
 
 \item{\code{t}}{A POSIXct with the date and time of each record.}
 
+\item{\code{depth}}{A numeric with the depth records.}
+
 \item{\code{rawA,rawM,rawG}}{An nx3 numeric matrix with the raw accelerometer,
 magnetometer, and gyroscope records in enineering units.}
 
@@ -37,5 +39,8 @@ microteslas, and radians per second, respectively in the tag's frame.}
 
 \item{\code{speedJJ,speedFN}}{Numeric vectors with speed estimates derived from
 jiggle and flow noise, respectively.}
+
+\item{\code{rawdata}}{A tibble with the (decimated) raw data. Removed at the end of
+the PRH creation process.}
 }}
 

@@ -10,7 +10,7 @@ PRH(tagid, tagnum)
 \item{tagid}{A string with the tagid (e.g. "mn180105-22a").}
 }
 \value{
-An object of class PRH.
+An object of class PRH with the tagid and tagnum slots filled.
 }
 \description{
 Constructor for PRH class

@@ -3,7 +3,8 @@
 #' \code{tagonoff} is a Shiny app that allows the user to zoom in on pressure
 #' and acceleration to choose the tag on and off times.
 #'
-#' @param
+#' @param rawdata A tibble of raw tag data (e.g. returned from
+#'   \code{import_cats})
 tagonoff <- function(rawdata) {
 
   # THANK YOU:
