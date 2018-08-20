@@ -27,13 +27,15 @@
 #' }
 #' @seealso \link{\code{import_cats}}
 fix_backskip <- function(prh, thr = 2) {
-  ts_diff <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
-  period <- median(ts_diff)
+  periods <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
+  # Assumes programmed frequency was a whole number e.g. 400 Hz
+  freq <- round(1 / median(periods))
+  period <- 1 / freq
 
   # Identify where the backwards and forwards skips are and match up the closest
   # ones to calculate duration of each skip.
-  back_skips <- which(ts_diff < 0)
-  fore_skips <- which(ts_diff > 2 * period)
+  back_skips <- which(periods < 0)
+  fore_skips <- which(periods > 2 * period)
   which_fore <- findInterval(back_skips, fore_skips)
   skip_dur <- as.numeric(prh@rawdata$datetimeUTC[back_skips + 1] -
                            prh@rawdata$datetimeUTC[fore_skips[which_fore]],
@@ -85,14 +87,16 @@ fix_backskip <- function(prh, thr = 2) {
 #' }
 #' @seealso \link{\code{import_cats}}, \link{\code{fix_backskip}}
 fix_gap <- function(prh, thr = 2) {
-  ts_diff <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
-  period <- median(ts_diff)
+  periods <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
+  # Assumes programmed frequency was a whole number e.g. 400 Hz
+  freq <- round(1 / median(periods))
+  period <- 1 / freq
 
   # Identify gaps
-  back_skips <- which(ts_diff < 0)
+  back_skips <- which(periods < 0)
   if (length(back_skips) > 0)
     stop("Backward skips present. Use fix_backskips first.")
-  gaps <- which(ts_diff > 2 * period)
+  gaps <- which(periods > 2 * period)
   gap_dur <- as.numeric(prh@rawdata$datetimeUTC[gaps + 1] -
                           prh@rawdata$datetimeUTC[gaps],
                         units = "secs")
@@ -105,7 +109,9 @@ fix_gap <- function(prh, thr = 2) {
     fill_ts <- seq(prh@rawdata$datetimeUTC[gap],
                    prh@rawdata$datetimeUTC[gap + 1],
                    by = period)
-    # Drop the first timestamp to avoid duplication
+    # Drop the first (and last if necessary) timestamp to avoid duplication
+    if (fill_ts[length(fill_ts)] == prh@rawdata$datetimeUTC[gap + 1])
+      fill_ts <- fill_ts[-length(fill_ts)]
     dplyr::tibble(datetimeUTC = fill_ts[-1])
   }
   fillers <- purrr::map_dfr(gaps, filler_fun)

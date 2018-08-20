@@ -1,18 +1,16 @@
 #' Tag on/off GUI
 #'
 #' \code{tagonoff} is a Shiny app that allows the user to zoom in on pressure
-#' and acceleration to choose the tag on and off times.
+#' and acceleration to choose the tag on and off times. Should only be called
+#' from \link{\code{trim_data}}.
 #'
-#' @param rawdata A tibble of raw tag data (e.g. returned from
-#'   \code{import_cats})
+#' @param prh A tibble of raw tag data
+#' @return
 tagonoff <- function(rawdata) {
 
   # THANK YOU:
   # https://gallery.shinyapps.io/105-plot-interaction-zoom/
   # https://github.com/daattali/advanced-shiny/blob/master/close-window/app.R
-
-  if(is.unsorted(rawdata$datetimeUTC))
-    stop("Out-of-order timestamps")
 
   # For performance, downsample to 2e3 points per plot
   res <- 2e3
@@ -153,7 +151,7 @@ tagonoff <- function(rawdata) {
         zoom_range$acc_y <- NULL
         zoom_i <- findInterval(zoom_range$x, rawdata$datetimeUTC)
         zoom_range$zoom_data <- rawdata %>%
-          slice(seq(zoom_i[1], zoom_i[2], length.out = res))
+          dplyr::slice(seq(zoom_i[1], zoom_i[2], length.out = res))
       } else {
         zoom_range$x <- NULL
         zoom_range$depth_y <- NULL
@@ -169,7 +167,7 @@ tagonoff <- function(rawdata) {
         zoom_range$depth_y <- NULL
         zoom_i <- findInterval(zoom_range$x, rawdata$datetimeUTC)
         zoom_range$zoom_data <- rawdata %>%
-          slice(seq(zoom_i[1], zoom_i[2], length.out = res))
+          dplyr::slice(seq(zoom_i[1], zoom_i[2], length.out = res))
       } else {
         zoom_range$x <- NULL
         zoom_range$depth_y <- NULL
@@ -193,10 +191,12 @@ tagonoff <- function(rawdata) {
   }
 
   result <- shiny::runApp(shiny::shinyApp(ui, server))
-  if (!("POSIXct" %in% class(result)) ||
-      length(result != 2))
-    stop("Error in tagonoff, result is not a POSIXct of length 2.")
-  if (result[2] < result[1])
+  if (!all(purrr::map_lgl(result, ~ "POSIXct" %in% class(.x))) ||
+      length(result) != 2)
+    stop("Error in tagonoff, result is not a length 2 list of POSIXct.")
+  if (result$tagoff < result$tagon)
     stop("Error in tagonoff, tag on time is after tag off time.")
+  result$rawdata <- rawdata %>%
+    dplyr::filter(dplyr::between(datetimeUTC, result$tagon, result$tagoff))
   result
 }

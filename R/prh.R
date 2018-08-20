@@ -139,20 +139,19 @@ decimate_prh <- function(prh, new_freq) {
 #' \code{trim_data} removes data from before tag on time and after tag off time.
 #' Optionally displays a GUI for interactive tag on/off time selection.
 #'
-#' @import shiny
-#'
-#' @param raw_data A tibble of the raw data (e.g. returned from
-#'   \code{import_cats})
+#' @param prh A PRH object. Should already be decimated (see
+#'   \link{\code{decimate_prh}})
 #' @param use_gui A logical indicating whether to use the interactive plot for
 #'   tag on/off time selection.
 #' @param tagon,tagoff A POSIXct with the tag on/off time. Ignored if
 #'   \code{use_gui} is TRUE (default).
-#' @return A tibble with rows before tag on and after tag off removed.
-trim_data <- function(rawdata, use_gui = TRUE, tagon = NA, tagoff = NA) {
-  if (!("data.frame" %in% class(raw_data)))
-    stop("raw_data must be a tibble.")
-  if (nrow(raw_data) == 0)
-    stop("raw_data is empty.")
+#' @return A PRH with the tagon and tagoff slots filled and the rawdata slot
+#'   truncated to tagon:tagoff.
+trim_data <- function(prh, use_gui = TRUE, tagon = NA, tagoff = NA) {
+  if (!("PRH" %in% class(prh)))
+    stop("prh must be a PRH object")
+  if (nrow(prh@rawdata) == 0)
+    stop("prh rawdata is empty.")
   if (!use_gui) {
     if (!("POSIXct" %in% class(tagon)) ||
         length(tagon) > 1)
@@ -160,17 +159,18 @@ trim_data <- function(rawdata, use_gui = TRUE, tagon = NA, tagoff = NA) {
     if (!("POSIXct" %in% class(tagoff)) ||
         length(tagoff) > 1)
       stop("tagoff must be a POSIXct of length 1.")
-    if (!all(c("dateUTC", "timeUTC") %in% colnames(rawdata)))
-      stop("Columns dateUTC, timeUTC not found in raw_data.")
-    list(tagon = tagon,
-         tagoff = tagoff,
-         data = rawdata %>%
-           dplyr::filter(dplyr::between(datetimeUTC, tagon, tagoff)))
+    if (!("datetimeUTC" %in% colnames(prh@rawdata)))
+      stop("Column datetimeUTC not found in prh@rawdata.")
+    prh@tagon <- tagon;
+    prh@tagoff <- tagoff;
+    prh@rawdata <- prh@rawdata %>%
+      dplyr::filter(dplyr::between(datetimeUTC, tagon, tagoff))
+    prh
   } else {
-    result <- tagonoff(rawdata)
-    list(tagon = result[1],
-         tagoff = result[2],
-         data = rawdata %>%
-           dplyr::filter(dplyr::between(datetimeUTC, result[1], result[2])))
+    result <- tagonoff(prh@rawdata)
+    prh@tagon <- result$tagon
+    prh@tagoff <- result$tagoff
+    prh@rawdata <- result$rawdata
+    prh
   }
 }
