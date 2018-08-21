@@ -48,6 +48,7 @@ test_that("fix_gap fixes gaps", {
 test_that("fixing data produces good decimation", {
   new_freq <- 10
   prh_deci <<- decimate_prh(prh_gap, new_freq)
+  expect_equal(prh_deci@freq, new_freq)
   periods <- as.numeric(diff(prh_deci@rawdata$datetimeUTC), units = "secs")
   expected_periods <- rep(1 / new_freq, length(periods))
   tol_factor <- 100
