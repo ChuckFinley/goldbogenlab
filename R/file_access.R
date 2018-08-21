@@ -61,42 +61,18 @@ list_raw_tags <- function() {
 #' @param tagid A string with the tagid (e.g. "mn180105-22a"). Make sure the raw
 #'   data for the tag is on your hard drive!
 #'
-#' @return A tibble of raw tag data with fields:
-#' \itemize{
-#'   \item dateUTC (character)
-#'   \item timeUTC (character)
-#'   \item datetimeUTC (POSIXct)
-#'   \item timeLocal (character)
-#'   \item accX (double)
-#'   \item accY (double)
-#'   \item accZ (double)
-#'   \item gyrX (double)
-#'   \item gyrY (double)
-#'   \item gyrZ (double)
-#'   \item magX (double)
-#'   \item magY (double)
-#'   \item magZ (double)
-#'   \item tempIMU (double)
-#'   \item gpsDate (character)
-#'   \item gpsTime (character)
-#'   \item gps3 (integer)
-#'   \item gpsSats (integer)
-#'   \item depthM (double)
-#'   \item depthDegC (double)
-#'   \item light1 (integer)
-#'   \item light2 (integer)
-#'   \item syerr (character)
-#'   \item battV (double)
-#'   \item battmA (double)
-#'   \item battmAh (double)
-#'   \item camera (integer)
-#'   \item flags (character)
-#'   \item led (integer)
-#'   \item camtime (integer)
-#'   \item gpsL (logical)
-#'   \item ccStatus (character)
-#'   \item ccVidSz (integer)
-#' }
+#' @return A tibble of raw tag data with fields: \itemize{ \item dateUTC
+#'   (character) \item timeUTC (character) \item datetimeUTC (POSIXct) \item
+#'   timeLocal (character) \item accX (double) \item accY (double) \item accZ
+#'   (double) \item gyrX (double) \item gyrY (double) \item gyrZ (double) \item
+#'   magX (double) \item magY (double) \item magZ (double) \item tempIMU
+#'   (double) \item gpsDate (character) \item gpsTime (character) \item gps3
+#'   (integer) \item gpsSats (integer) \item depthM (double) \item depthDegC
+#'   (double) \item light1 (integer) \item light2 (integer) \item syerr
+#'   (character) \item battV (double) \item battmA (double) \item battmAh
+#'   (double) \item camera (integer) \item flags (character) \item led (integer)
+#'   \item camtime (integer) \item gpsL (logical) \item ccStatus (character)
+#'   \item ccVidSz (integer) }
 #'
 #' @seealso \code{\link{list_raw_tags}}
 import_cats <- function(tagid) {
@@ -160,4 +136,37 @@ import_cats <- function(tagid) {
   if (any(as.numeric(diff(result$datetimeUTC)) > 120))
     warning("Gap(s) greater than two minutes.")
   result
+}
+
+#' Load a calibration file
+#'
+#' \code{load_cal} finds a tag's calibration .mat file and loads it into a list.
+#'
+#' @param tagnum A string with the tag number (e.g. "44", not "mn180607-44").
+#'
+#' @return A list with fields: \itemize{ \item A \item acal \item aconst \item
+#'   gycal \item gyconst \item magcaloff \item magcalon \item magconstoff \item
+#'   magconston \item Tcal \item Tconst \item pcal \item pconst }
+load_cal <- function(tagnum) {
+  if (length(tagnum) != 1 ||
+      typeof(tagnum) != "character")
+    stop("tagnum must be a length 1 string.")
+  cal_path <- file.path(get_cats_path(),
+                        "Calibrations",
+                        stringr::str_glue("CATScal{tagnum}.mat"))
+  if (!file.exists(cal_path))
+    stop("Calibration file not found.")
+
+  cal <- R.matlab::readMat(cal_path)
+  names(cal)[4:9] <- c("gcal", "gconst", "moffcal", "moncal", "monconst",
+                       "moffconst")
+  # Pressure calibration slope/constant are 1x1 matrices, which leads to confusion,
+  # so we convert them to length 1 vectors.
+  if (any(dim(cal$pconst) != c(1, 1)) ||
+      any(dim(cal$pcal) != c(1, 1)))
+    stop ("Pressure calibration dimensions are not 1x1.")
+  cal$pcal <- as.vector(cal$pcal)
+  cal$pconst <- as.vector(cal$pconst)
+
+  cal
 }
