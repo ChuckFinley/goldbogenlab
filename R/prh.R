@@ -10,16 +10,15 @@
 #' @slot slips A POSIXct vector with the timestamps of each tag slip.
 #' @slot W A list of 3x3 numeric matrices to rotate tag frame into whale frame.
 #'   One matrix for each tag orientation (changes on slips).
+#' @slot At,Mt,Gt Numeric matrices with accelerometer, magnetometer, and
+#'   gyroscope records  calibrated in units of g, microteslas, and radians per
+#'   second, respectively in the tag's frame.
+#' @slot Aw,Mw,Gw As At, Mt, and Gt, but rotated into the whale's frame.
 #' @slot data A tibble with the following columns: \itemize{ \item t A POSIXct
 #'   with the date and time of each record. \item p A numeric with the depth
-#'   records. \item rawA,rawM,rawG List columns with nx3 numeric matrices with
-#'   the raw accelerometer, magnetometer, and gyroscope records in engineering
-#'   units. \item At,Mt,Gt As rawA, rawM, and rawG, but calibrated in units of
-#'   g, microteslas, and radians per second, respectively in the tag's frame.
-#'   \item Aw,Mw,Gw As At, Mt, and Gt, but rotated into the whale's frame. \item
-#'   pitch,roll,head Numerics with the pitch, roll, and heading. \item
-#'   speedJJ,speedFN Numerics with speed estimates derived from jiggle and flow
-#'   noise, respectively.}
+#'   records. \item pitch,roll,head Numerics with the pitch, roll, and heading.
+#'   \item speedJJ,speedFN Numerics with speed estimates derived from jiggle and
+#'   flow noise, respectively. \item camon A logical, true if the camera is on.}
 #' @slot rawdata A tibble with the (decimated) raw data. Removed at the end of
 #'   the PRH creation process.
 .PRH <- setClass("PRH",
@@ -29,6 +28,12 @@
             tagon = "POSIXct",
             tagoff = "POSIXct",
             slips = "POSIXct",
+            At = "matrix",
+            Mt = "matrix",
+            Gt = "matrix",
+            Aw = "matrix",
+            Mw = "matrix",
+            Gw = "matrix",
             W = "list",
             data = "data.frame",
             rawdata = "data.frame"),
@@ -130,11 +135,12 @@ decimate_prh <- function(prh, new_freq) {
   if (old_freq %% new_freq != 0)
     stop("New frequency is not a factor of old frequency.")
 
+  prh@freq <- new_freq
   prh@rawdata <- dplyr::slice(rawdata, seq(1, nrow(rawdata), by = old_freq / new_freq))
   prh
 }
 
-#' Trim data to tag on period
+#' Trim data to tag-on period
 #'
 #' \code{trim_data} removes data from before tag on time and after tag off time.
 #' Optionally displays a GUI for interactive tag on/off time selection.
@@ -173,4 +179,71 @@ trim_data <- function(prh, use_gui = TRUE, tagon = NA, tagoff = NA) {
     prh@rawdata <- result$rawdata
     prh
   }
+}
+
+#' Apply bench calibrations
+#'
+#' \code{bench_cal} applies bench calibrations to raw data. Calibrates inertial
+#' sensors and fills in the At, Gt, and Mt slots. At, Mt, and Gt are in units of
+#' g, microteslas, and radians per second, respectively, in the tag's frame.
+#' Then calibrates the pressure sensor and fills in the p field in the data
+#' slot. Also fills in the t and camon fields in the data slot.
+#'
+#' @param prh A PRH object. Should already be decimated (see
+#'   \link{\code{decimate_prh}}) and trimmed (see \link{\code{trim_prh}})
+#' @return A PRH object with updated rawA, rawG, rawM, At, Gt, and Mt slots.
+bench_cal <- function(prh) {
+  if (nrow(prh@rawdata) == 0)
+    stop("PRH data is empty - have you initiated it?")
+  if (length(prh@freq) == 0)
+    stop("PRH frequency not set - have you decimated it?")
+  if (prh@tagon == num_to_POSIX(0) ||
+      prh@tagoff == num_to_POSIX(0))
+    stop("PRH tagon/tagoff not set - have you trimmed it?")
+
+  cal <- load_cal(prh@tagnum)
+
+  # Fill in column t in prh@data from prh@rawdata
+  prh@data <- prh@rawdata %>%
+    dplyr::select(t = datetimeUTC)
+
+  # Apply bench calibrations
+  apply_cal <- function(sensor) {
+    if (!(sensor %in% c("a", "g", "mon", "moff")))
+      stop("sensor must be one of c(\"a\", \"g\", \"mon\", \"moff\")")
+
+    # Get calibration slopes and constants
+    cal_const <- cal[[paste0(sensor, "const")]]
+    cal_slope <- cal[[paste0(sensor, "cal")]]
+    if (is.null(cal_const) || is.null(cal_slope)) browser()
+
+    # Get raw intertial sensor values
+    sensor_name <- switch(sensor,
+                          a = "acc",
+                          g = "gyr",
+                          mon = "mag",
+                          moff = "mag")
+    vals <- dplyr::select(prh@rawdata,
+                          dplyr::starts_with(sensor_name)) %>%
+      as.matrix
+
+    # Apply calibration
+    (vals %*% cal_slope) + matrix(rep(cal_const, each = nrow(vals)),
+                                  nrow = nrow(vals))
+  }
+  cal_mats <- purrr::map(c("a", "g", "mon", "moff"), apply_cal)
+  prh@At <- cal_mats[[1]]
+  prh@Gt <- cal_mats[[2]]
+  # Use different magnetometer calibrations for when the camera is on and off
+  prh@data$camon <- prh@rawdata$ccStatus != "---"
+  mon <- cal_mats[[3]]
+  mon[!prh@data$camon,] <- 0
+  moff <- cal_mats[[4]]
+  moff[prh@data$camon,] <- 0
+  prh@Mt <- mon + moff
+
+  # Calibrate pressure (note: constant is subtracted, not added)
+  prh@data$p <- prh@rawdata$depthM * cal$pcal - cal$pconst
+
+  prh
 }

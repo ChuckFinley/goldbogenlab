@@ -22,4 +22,5 @@ Collate:
     'prh.R'
     'tag_slip.R'
     'tagonoff.R'
+    'view_data.R'
 Suggests: testthat
