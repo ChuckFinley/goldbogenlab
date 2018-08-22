@@ -2,22 +2,23 @@
 % Please edit documentation in R/prh.R
 \name{trim_data}
 \alias{trim_data}
-\title{Trim data to tag on period}
+\title{Trim data to tag-on period}
 \usage{
-trim_data(rawdata, use_gui = TRUE, tagon = NA, tagoff = NA)
+trim_data(prh, use_gui = TRUE, tagon = NA, tagoff = NA)
 }
 \arguments{
+\item{prh}{A PRH object. Should already be decimated (see
+\code{\link{decimate_prh}})}
+
 \item{use_gui}{A logical indicating whether to use the interactive plot for
 tag on/off time selection.}
 
 \item{tagon, tagoff}{A POSIXct with the tag on/off time. Ignored if
 \code{use_gui} is TRUE (default).}
-
-\item{raw_data}{A tibble of the raw data (e.g. returned from
-\code{import_cats})}
 }
 \value{
-A tibble with rows before tag on and after tag off removed.
+A PRH with the tagon and tagoff slots filled and the rawdata slot
+  truncated to tagon:tagoff.
 }
 \description{
 \code{trim_data} removes data from before tag on time and after tag off time.

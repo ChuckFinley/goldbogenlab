@@ -10,17 +10,27 @@ downsample <- function(df, by = NULL, length.out = NULL) {
   dplyr::slice(df, i)
 }
 
-plot_acc <- function(prh) {
-  prh@At %>%
-    data.frame %>%
-    dplyr::rename(x = X1, y = X2, z = X3) %>%
+plot_sensor <- function(prh, sensor) {
+  stopifnot(sensor %in% c("acc", "mag", "gyr"))
+  sensor_mat <- switch(sensor,
+                       acc = prh@At,
+                       mag = prh@Mt,
+                       gyr = prh@Gt)
+  sensor_lbl <- switch(sensor,
+                       acc = "Acceleration (g)",
+                       mag = "Magnetism (microtesla)",
+                       gyr = "Rotation (rad/s)")
+
+  sensor_mat %>%
+    dplyr::as_tibble() %>%
+    dplyr::rename(x = V1, y = V2, z = V3) %>%
     cbind(prh@data) %>%
     # Downsample to 5e3 records
     downsample(length.out = 5e3) %>%
     tidyr::gather(axis, value, x:z) %>%
     ggplot2::ggplot(ggplot2::aes(t, value, color = axis)) +
     ggplot2::geom_line() +
-    ggplot2::labs(x = "", y = "Acceleration (g)") +
+    ggplot2::labs(x = "", y = sensor_lbl) +
     ggplot2::theme_classic() +
     ggplot2::theme(legend.direction = "horizontal",
                    legend.position = c(0.1, 0.1))
@@ -37,9 +47,18 @@ plot_depth <- function(prh) {
     ggplot2::theme_classic()
 }
 
-plot_acc2 <- function(prh) {
+plot_sensor2 <- function(prh, sensor) {
   gridExtra::grid.arrange(plot_depth(prh),
-                          plot_acc(prh),
+                          plot_sensor(prh, sensor),
                           nrow = 2,
                           heights = c(2,3))
+}
+
+plot_vec_mat <- function(vec, mat) {
+  data.frame(mat) %>%
+    dplyr::mutate(x = vec) %>%
+    tidyr::gather("key", "value", -x) %>%
+    ggplot2::ggplot(ggplot2::aes(x, value, color = key)) +
+    ggplot2::geom_line() +
+    ggplot2::theme_classic()
 }

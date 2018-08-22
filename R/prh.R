@@ -45,7 +45,7 @@
 #' Constructor for PRH class
 #'
 #' @param tagid A string with the tagid (e.g. "mn180105-22a").
-#'
+#' @param tagnum A string with the tag number (e.g. "22")
 #' @return An object of class PRH with the tagid and tagnum slots filled.
 PRH <- function(tagid, tagnum) {
   if (!is.character(tagid) ||
@@ -69,22 +69,31 @@ PRH <- function(tagid, tagnum) {
 #' \code{init_prh} tries to load raw tag data.
 #'
 #' Initiating the PRH process finds the raw data on the CATS drive, imports it,
-#' and tidies up the names. The next step is decimating the data to a manageable
-#' frequency.
+#' and tidies up the names.
 #'
-#' @param prh A PRH object.
+#' @param tagid A string with the tagid (e.g. "mn180105-22a").
+#' @param tagnum A string with the tag number (e.g. "22")
 #' @return A PRH object with the rawdata slot filled
 #' @examples
 #' \dontrun{
-#' prh0 <- PRH("mn180607-44", "44")
-#' prh_rawdata <- init_prh(prh0)
+#' prh_rawdata <- init_prh("mn180607-44", "44")
 #' }
-#' @seealso \link{\code{import_cats}}, \link{\code{decimate}}
-init_prh <- function(prh) {
-  if (!("PRH" %in% class(prh)))
-    stop("prh must be a PRH object.")
+#' @seealso \code{\link{import_cats}} for reading raw data
+init_prh <- function(tagid, tagnum) {
+  if (!is.character(tagid) ||
+      length(tagid) != 1) {
+    stop("tagid must be a length one string.")
+  }
+  if (!is.character(tagnum) ||
+      length(tagnum) != 1) {
+    stop("tagnum must be a length one string.")
+  }
+  if (all(is.na(stringr::str_match(tagid, tagnum)))) {
+    warning(stringr::str_glue("WARNING: tagnum \"{tagnum}\" not found in tagid \"{tagid}\"."))
+  }
 
   tryCatch({
+    prh <- PRH(tagid, tagnum)
     prh@rawdata <- import_cats(prh@tagid)
     prh
   }, error = function(e) {
@@ -106,7 +115,7 @@ init_prh <- function(prh) {
 #'   sampling frequency.
 #' @return A PRH with the freq slot filled and rawdata decimated to the new
 #'   frequency.
-#' @seealso \link{\code{import_cats}}
+#' @seealso \code{\link{import_cats}}
 decimate_prh <- function(prh, new_freq) {
   if (!("PRH" %in% class(prh)))
     stop("prh must be a PRH object.")
@@ -146,7 +155,7 @@ decimate_prh <- function(prh, new_freq) {
 #' Optionally displays a GUI for interactive tag on/off time selection.
 #'
 #' @param prh A PRH object. Should already be decimated (see
-#'   \link{\code{decimate_prh}})
+#'   \code{\link{decimate_prh}})
 #' @param use_gui A logical indicating whether to use the interactive plot for
 #'   tag on/off time selection.
 #' @param tagon,tagoff A POSIXct with the tag on/off time. Ignored if
@@ -179,71 +188,4 @@ trim_data <- function(prh, use_gui = TRUE, tagon = NA, tagoff = NA) {
     prh@rawdata <- result$rawdata
     prh
   }
-}
-
-#' Apply bench calibrations
-#'
-#' \code{bench_cal} applies bench calibrations to raw data. Calibrates inertial
-#' sensors and fills in the At, Gt, and Mt slots. At, Mt, and Gt are in units of
-#' g, microteslas, and radians per second, respectively, in the tag's frame.
-#' Then calibrates the pressure sensor and fills in the p field in the data
-#' slot. Also fills in the t and camon fields in the data slot.
-#'
-#' @param prh A PRH object. Should already be decimated (see
-#'   \link{\code{decimate_prh}}) and trimmed (see \link{\code{trim_prh}})
-#' @return A PRH object with updated rawA, rawG, rawM, At, Gt, and Mt slots.
-bench_cal <- function(prh) {
-  if (nrow(prh@rawdata) == 0)
-    stop("PRH data is empty - have you initiated it?")
-  if (length(prh@freq) == 0)
-    stop("PRH frequency not set - have you decimated it?")
-  if (prh@tagon == num_to_POSIX(0) ||
-      prh@tagoff == num_to_POSIX(0))
-    stop("PRH tagon/tagoff not set - have you trimmed it?")
-
-  cal <- load_cal(prh@tagnum)
-
-  # Fill in column t in prh@data from prh@rawdata
-  prh@data <- prh@rawdata %>%
-    dplyr::select(t = datetimeUTC)
-
-  # Apply bench calibrations
-  apply_cal <- function(sensor) {
-    if (!(sensor %in% c("a", "g", "mon", "moff")))
-      stop("sensor must be one of c(\"a\", \"g\", \"mon\", \"moff\")")
-
-    # Get calibration slopes and constants
-    cal_const <- cal[[paste0(sensor, "const")]]
-    cal_slope <- cal[[paste0(sensor, "cal")]]
-    if (is.null(cal_const) || is.null(cal_slope)) browser()
-
-    # Get raw intertial sensor values
-    sensor_name <- switch(sensor,
-                          a = "acc",
-                          g = "gyr",
-                          mon = "mag",
-                          moff = "mag")
-    vals <- dplyr::select(prh@rawdata,
-                          dplyr::starts_with(sensor_name)) %>%
-      as.matrix
-
-    # Apply calibration
-    (vals %*% cal_slope) + matrix(rep(cal_const, each = nrow(vals)),
-                                  nrow = nrow(vals))
-  }
-  cal_mats <- purrr::map(c("a", "g", "mon", "moff"), apply_cal)
-  prh@At <- cal_mats[[1]]
-  prh@Gt <- cal_mats[[2]]
-  # Use different magnetometer calibrations for when the camera is on and off
-  prh@data$camon <- prh@rawdata$ccStatus != "---"
-  mon <- cal_mats[[3]]
-  mon[!prh@data$camon,] <- 0
-  moff <- cal_mats[[4]]
-  moff[prh@data$camon,] <- 0
-  prh@Mt <- mon + moff
-
-  # Calibrate pressure (note: constant is subtracted, not added)
-  prh@data$p <- prh@rawdata$depthM * cal$pcal - cal$pconst
-
-  prh
 }

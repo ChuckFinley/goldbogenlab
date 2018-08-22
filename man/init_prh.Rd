@@ -2,27 +2,30 @@
 % Please edit documentation in R/prh.R
 \name{init_prh}
 \alias{init_prh}
-\title{Initiate a PRH \code{init_prh} tries to load raw tag data and decimate it (by
-default to 10 Hz).}
+\title{Initiate a PRH}
 \usage{
-init_prh(prh, new_freq)
+init_prh(tagid, tagnum)
 }
 \arguments{
-\item{prh}{A PRH object.}
+\item{tagid}{A string with the tagid (e.g. "mn180105-22a").}
 
-\item{new_freq}{The decimated sample frequency in Hz (by default 10 Hz).}
+\item{tagnum}{A string with the tag number (e.g. "22")}
 }
 \value{
-A PRH object with the following additional slots filled:
-\itemize{
-  \item freq
-  \item rawdata
-}
+A PRH object with the rawdata slot filled
 }
 \description{
-Initiating the PRH process requires importing the raw data and decimating it
-to a manageable frequency. The next step is trimming to the tag on/off times.
+\code{init_prh} tries to load raw tag data.
+}
+\details{
+Initiating the PRH process finds the raw data on the CATS drive, imports it,
+and tidies up the names.
+}
+\examples{
+\dontrun{
+prh_rawdata <- init_prh("mn180607-44", "44")
+}
 }
 \seealso{
-\link{\code{trim_data}}, \link{\code{import_cats}}, \link{\code{decimate}}
+\code{\link{import_cats}} for reading raw data
 }

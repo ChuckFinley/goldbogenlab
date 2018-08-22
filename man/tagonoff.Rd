@@ -7,10 +7,14 @@
 tagonoff(rawdata)
 }
 \arguments{
-\item{rawdata}{A tibble of raw tag data (e.g. returned from
-\code{import_cats})}
+\item{prh}{A tibble of raw tag data}
+}
+\value{
+A PRH object with the tagon/off slots filled and the rawdata slot
+  trimmed to the tagon/off times
 }
 \description{
 \code{tagonoff} is a Shiny app that allows the user to zoom in on pressure
-and acceleration to choose the tag on and off times.
+and acceleration to choose the tag on and off times. Should only be called
+from \code{\link{trim_data}}.
 }

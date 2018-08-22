@@ -25,7 +25,7 @@
 #' # Now decimation works
 #' prh_deci <- decimate_prh(prh_fix, 10)
 #' }
-#' @seealso \link{\code{import_cats}}
+#' @seealso \code{\link{import_cats}}
 fix_backskip <- function(prh, thr = 2) {
   periods <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
   # Assumes programmed frequency was a whole number e.g. 400 Hz
@@ -67,7 +67,7 @@ fix_backskip <- function(prh, thr = 2) {
 #' Fix timestamp gaps
 #'
 #' \code{fix_gap} attempts to fix gaps in timesteps. Fix backwards time skips
-#' (\link{\code{fix_backskip}}) before filling gaps.
+#' (\code{\link{fix_backskip}}) before filling gaps.
 #'
 #' @param prh A PRH object.
 #' @param thr A numeric defining the duration threshold (in sec) for warning
@@ -85,7 +85,7 @@ fix_backskip <- function(prh, thr = 2) {
 #' # Now decimation works
 #' prh_deci <- decimate_prh(prh_fix, 10)
 #' }
-#' @seealso \link{\code{import_cats}}, \link{\code{fix_backskip}}
+#' @seealso \code{\link{import_cats}}, \link{\code{fix_backskip}}
 fix_gap <- function(prh, thr = 2) {
   periods <- as.numeric(diff(prh@rawdata$datetimeUTC), units = "secs")
   # Assumes programmed frequency was a whole number e.g. 400 Hz
@@ -121,4 +121,45 @@ fix_gap <- function(prh, thr = 2) {
   result <- prh
   result@rawdata <- newdata
   result
+}
+
+#' Linearly interpolate gaps
+#'
+#' \code{interp_gaps} interpolates gaps in sensor readings. Time skips and gaps
+#' should be corrected first.
+#'
+#' @param prh A PRH object.
+#' @param thr A numeric defining the duration threshold (in sec) for maximum
+#'   interpolation window.
+#' @return A PRH object with the rawdata slot updated
+interp_gaps <- function(prh, thr = 2) {
+  stopifnot("PRH" %in% class(prh),
+            is.numeric(thr),
+            length(thr) == 1)
+
+  # Look for longest gaps in acc, mag, gyr, and depth.
+  longest_na <- function(vec) {
+    vec_rl <- rle(is.na(vec))
+    max(vec_rl$lengths[vec_rl$values])
+  }
+  # Convert number of records to duration in seconds
+  to_secs <- function(n) n / prh@freq
+  # Longest NA sequence within inertial (e.g. accX) and pressure sensors
+  sensor_gaps <- prh@rawdata %>%
+    dplyr::summarize_at(dplyr::vars(dplyr::matches("[a-z]{3}[XYZ]"),
+                                    depthM),
+                        dplyr::funs(longest_na)) %>%
+    dplyr::mutate_all(dplyr::funs(to_secs))
+  if (any(sensor_gaps > thr))
+    stop("Sensor gap greater than threshold.")
+
+  # Apply interpolation
+  interp <- function(vec) {
+    approx(seq_along(vec), vec, xout = seq_along(vec))$y
+  }
+  prh@rawdata <- prh@rawdata %>%
+    dplyr::mutate_at(dplyr::vars(dplyr::matches("[a-z]{3}[XYZ]"),
+                                 depthM),
+                     dplyr::funs(interp))
+  prh
 }

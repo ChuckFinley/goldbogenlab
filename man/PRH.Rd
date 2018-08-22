@@ -8,6 +8,8 @@ PRH(tagid, tagnum)
 }
 \arguments{
 \item{tagid}{A string with the tagid (e.g. "mn180105-22a").}
+
+\item{tagnum}{A string with the tag number (e.g. "22")}
 }
 \value{
 An object of class PRH with the tagid and tagnum slots filled.

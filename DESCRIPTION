@@ -15,6 +15,7 @@ Imports: shiny,
   yaml
 RoxygenNote: 6.1.0
 Collate:
+    'calibration.R'
     'config.R'
     'file_access.R'
     'fix_rawdata.R'
@@ -23,4 +24,7 @@ Collate:
     'tag_slip.R'
     'tagonoff.R'
     'view_data.R'
-Suggests: testthat
+Suggests: testthat,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

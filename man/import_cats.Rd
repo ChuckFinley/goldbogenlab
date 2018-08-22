@@ -11,42 +11,18 @@ import_cats(tagid)
 data for the tag is on your hard drive!}
 }
 \value{
-A tibble of raw tag data with fields:
-\itemize{
-  \item dateUTC (character)
-  \item timeUTC (character)
-  \item datetimeUTC (POSIXct)
-  \item timeLocal (character)
-  \item accX (double)
-  \item accY (double)
-  \item accZ (double)
-  \item gyrX (double)
-  \item gyrY (double)
-  \item gyrZ (double)
-  \item magX (double)
-  \item magY (double)
-  \item magZ (double)
-  \item tempIMU (double)
-  \item gpsDate (character)
-  \item gpsTime (character)
-  \item gps3 (integer)
-  \item gpsSats (integer)
-  \item depthM (double)
-  \item depthDegC (double)
-  \item light1 (integer)
-  \item light2 (integer)
-  \item syerr (character)
-  \item battV (double)
-  \item battmA (double)
-  \item battmAh (double)
-  \item camera (integer)
-  \item flags (character)
-  \item led (integer)
-  \item camtime (integer)
-  \item gpsL (logical)
-  \item ccStatus (character)
-  \item ccVidSz (integer)
-}
+A tibble of raw tag data with fields: \itemize{ \item dateUTC
+  (character) \item timeUTC (character) \item datetimeUTC (POSIXct) \item
+  timeLocal (character) \item accX (double) \item accY (double) \item accZ
+  (double) \item gyrX (double) \item gyrY (double) \item gyrZ (double) \item
+  magX (double) \item magY (double) \item magZ (double) \item tempIMU
+  (double) \item gpsDate (character) \item gpsTime (character) \item gps3
+  (integer) \item gpsSats (integer) \item depthM (double) \item depthDegC
+  (double) \item light1 (integer) \item light2 (integer) \item syerr
+  (character) \item battV (double) \item battmA (double) \item battmAh
+  (double) \item camera (integer) \item flags (character) \item led (integer)
+  \item camtime (integer) \item gpsL (logical) \item ccStatus (character)
+  \item ccVidSz (integer) }
 }
 \description{
 \code{import_cats} reads and concatenates all the raw data CSVs from a CATS

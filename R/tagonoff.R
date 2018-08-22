@@ -2,10 +2,11 @@
 #'
 #' \code{tagonoff} is a Shiny app that allows the user to zoom in on pressure
 #' and acceleration to choose the tag on and off times. Should only be called
-#' from \link{\code{trim_data}}.
+#' from \code{\link{trim_data}}.
 #'
 #' @param prh A tibble of raw tag data
-#' @return
+#' @return A PRH object with the tagon/off slots filled and the rawdata slot
+#'   trimmed to the tagon/off times
 tagonoff <- function(rawdata) {
 
   # THANK YOU:

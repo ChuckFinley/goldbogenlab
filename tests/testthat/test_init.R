@@ -3,7 +3,7 @@ library(testthat)
 context("Tag initiation")
 
 # Uses the following global variables to avoid lengthy operations:
-#   prh <<- init_prh(PRH("mn180607-44", "44"))
+#   prh <<- init_prh("mn180607-44", "44")
 #   prh_backskip <<- fix_backskip(prh)
 #   prh_gap <<- fix_gap(prh_backskip)
 #   prh_deci <<- decimate_prh(prh_gap, new_freq)
@@ -18,7 +18,7 @@ expect_date_lt <- function(object, expected) {
 }
 
 test_that("init_prh warns when timestamps are out of order", {
-  expect_warning(prh <<- init_prh(PRH("mn180607-44", "44")))
+  expect_warning(prh <<- init_prh("mn180607-44", "44"))
 })
 
 test_that("Decimation requires sorted, gapless timestamps", {

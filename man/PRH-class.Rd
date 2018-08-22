@@ -26,16 +26,17 @@ in local time.}
 \item{\code{W}}{A list of 3x3 numeric matrices to rotate tag frame into whale frame.
 One matrix for each tag orientation (changes on slips).}
 
+\item{\code{At,Mt,Gt}}{Numeric matrices with accelerometer, magnetometer, and
+gyroscope records  calibrated in units of g, microteslas, and radians per
+second, respectively in the tag's frame.}
+
+\item{\code{Aw,Mw,Gw}}{As At, Mt, and Gt, but rotated into the whale's frame.}
+
 \item{\code{data}}{A tibble with the following columns: \itemize{ \item t A POSIXct
 with the date and time of each record. \item p A numeric with the depth
-records. \item rawA,rawM,rawG List columns with nx3 numeric matrices with
-the raw accelerometer, magnetometer, and gyroscope records in engineering
-units. \item At,Mt,Gt As rawA, rawM, and rawG, but calibrated in units of
-g, microteslas, and radians per second, respectively in the tag's frame.
-\item Aw,Mw,Gw As At, Mt, and Gt, but rotated into the whale's frame. \item
-pitch,roll,head Numerics with the pitch, roll, and heading. \item
-speedJJ,speedFN Numerics with speed estimates derived from jiggle and flow
-noise, respectively.}}
+records. \item pitch,roll,head Numerics with the pitch, roll, and heading.
+\item speedJJ,speedFN Numerics with speed estimates derived from jiggle and
+flow noise, respectively. \item camon A logical, true if the camera is on.}}
 
 \item{\code{rawdata}}{A tibble with the (decimated) raw data. Removed at the end of
 the PRH creation process.}
