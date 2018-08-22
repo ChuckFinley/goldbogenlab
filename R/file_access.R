@@ -158,15 +158,24 @@ load_cal <- function(tagnum) {
     stop("Calibration file not found.")
 
   cal <- R.matlab::readMat(cal_path)
-  names(cal)[4:9] <- c("gcal", "gconst", "moffcal", "moncal", "monconst",
-                       "moffconst")
+  names(cal)[4:9] <- c("gcal", "gconst", "moffcal", "moncal", "moffconst",
+                       "monconst")
+
   # Pressure calibration slope/constant are 1x1 matrices, which leads to confusion,
-  # so we convert them to length 1 vectors.
+  # so we convert them to length 1 vectors. And we reverse the sign of the constant
+  # so calibration takes the form y = ax + b.
   if (any(dim(cal$pconst) != c(1, 1)) ||
       any(dim(cal$pcal) != c(1, 1)))
     stop ("Pressure calibration dimensions are not 1x1.")
   cal$pcal <- as.vector(cal$pcal)
-  cal$pconst <- as.vector(cal$pconst)
+  cal$pconst <- as.vector(-cal$pconst)
+
+  # Calibrations were derived as y = (x - b) * a, but y = a * x + b is more standard.
+  # We convert to the latter by settinge b (the constant) to -b * a.
+  cal$aconst <- -cal$aconst %*% cal$acal
+  cal$gconst <- -cal$gconst %*% cal$gcal
+  cal$monconst <- -cal$monconst %*% cal$moncal
+  cal$moffconst <- -cal$moffconst %*% cal$moffcal
 
   cal
 }
